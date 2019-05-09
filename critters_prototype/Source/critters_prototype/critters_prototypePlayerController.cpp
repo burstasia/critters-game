@@ -9,19 +9,13 @@
 
 Acritters_prototypePlayerController::Acritters_prototypePlayerController()
 {
-	bShowMouseCursor = true;
-	DefaultMouseCursor = EMouseCursor::Crosshairs;
+	
 }
 
 void Acritters_prototypePlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 
-	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
-	{
-		MoveToMouseCursor();
-	}
 }
 
 void Acritters_prototypePlayerController::SetupInputComponent()
@@ -29,84 +23,24 @@ void Acritters_prototypePlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &Acritters_prototypePlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &Acritters_prototypePlayerController::OnSetDestinationReleased);
+	InputComponent->BindAxis("MoveForward", this,&Acritters_prototypePlayerController::MoveForward);
+	InputComponent->BindAxis("MoveRight", this, &Acritters_prototypePlayerController::MoveRight);
 
-	// support touch devices 
-	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &Acritters_prototypePlayerController::MoveToTouchLocation);
-	InputComponent->BindTouch(EInputEvent::IE_Repeat, this, &Acritters_prototypePlayerController::MoveToTouchLocation);
-
-	InputComponent->BindAction("ResetVR", IE_Pressed, this, &Acritters_prototypePlayerController::OnResetVR);
 }
 
-void Acritters_prototypePlayerController::OnResetVR()
+void Acritters_prototypePlayerController::MoveForward(float scale)
 {
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
+	m_CurrentVelocity.X = FMath::Clamp(scale, -1.0f, 1.0f) * 100.0f;
 }
 
-void Acritters_prototypePlayerController::MoveToMouseCursor()
+void Acritters_prototypePlayerController::MoveRight(float scale)
 {
-	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
-	{
-		if (Acritters_prototypeCharacter* MyPawn = Cast<Acritters_prototypeCharacter>(GetPawn()))
-		{
-			if (MyPawn->GetCursorToWorld())
-			{
-				UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, MyPawn->GetCursorToWorld()->GetComponentLocation());
-			}
-		}
-	}
-	else
-	{
-		// Trace to see what is under the mouse cursor
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-
-		if (Hit.bBlockingHit)
-		{
-			// We hit something, move there
-			SetNewMoveDestination(Hit.ImpactPoint);
-		}
-	}
+	m_CurrentVelocity.Y = FMath::Clamp(scale, -1.0f, 1.0f) * 100.0f;
 }
 
-void Acritters_prototypePlayerController::MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location)
+FVector Acritters_prototypePlayerController::GetCurrentVelocity()
 {
-	FVector2D ScreenSpaceLocation(Location);
-
-	// Trace to see what is under the touch location
-	FHitResult HitResult;
-	GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
-	if (HitResult.bBlockingHit)
-	{
-		// We hit something, move there
-		SetNewMoveDestination(HitResult.ImpactPoint);
-	}
+	return m_CurrentVelocity;
 }
 
-void Acritters_prototypePlayerController::SetNewMoveDestination(const FVector DestLocation)
-{
-	APawn* const MyPawn = GetPawn();
-	if (MyPawn)
-	{
-		float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
 
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if ((Distance > 120.0f))
-		{
-			UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, DestLocation);
-		}
-	}
-}
-
-void Acritters_prototypePlayerController::OnSetDestinationPressed()
-{
-	// set flag to keep updating destination until released
-	bMoveToMouseCursor = true;
-}
-
-void Acritters_prototypePlayerController::OnSetDestinationReleased()
-{
-	// clear flag to indicate we should stop updating the destination
-	bMoveToMouseCursor = false;
-}
